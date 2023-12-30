@@ -103,6 +103,93 @@ export const deleteUser = async (req, res, next) => {
   }
 };
 
+export const depositCash = async (req, res, next) => {
+  try {
+    const { userId, amount } = req.body;
+
+    if (!userId || !amount || amount <= 0) {
+      res.status(STATUS_CODE.BAD_REQUEST);
+      throw new Error("Invalid deposit request");
+    }
+
+    const users = readUsersFromFile();
+    const index = users.findIndex((u) => u.ID.toString() === userId);
+
+    if (index === -1) {
+      res.status(STATUS_CODE.NOT_FOUND);
+      throw new Error("User not found");
+    }
+
+    const user = users[index];
+    user.cash += amount;
+
+    writeUsersToFile(users);
+    res.json(user);
+  } catch (error) {
+    next(error);
+  }
+};
+export const updateCredit = async (req, res, next) => {
+  try {
+    const { credit } = req.body;
+
+    if (!credit || credit < 0) {
+      res.status(STATUS_CODE.BAD_REQUEST);
+      throw new Error("Invalid credit update request");
+    }
+
+    const users = readUsersFromFile();
+    const index = users.findIndex((u) => u.ID.toString() === req.params.id);
+
+    if (index === -1) {
+      res.status(STATUS_CODE.NOT_FOUND);
+      throw new Error("User not found");
+    }
+
+    const user = users[index];
+    user.credit = credit;
+
+    writeUsersToFile(users);
+    res.json(user);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const withdrawCash = async (req, res, next) => {
+  try {
+    const { userId, amount } = req.body;
+
+    if (!userId || !amount || amount <= 0) {
+      res.status(STATUS_CODE.BAD_REQUEST);
+      throw new Error("Invalid withdrawal request");
+    }
+
+    const users = readUsersFromFile();
+    const index = users.findIndex((u) => u.ID.toString() === userId);
+
+    if (index === -1) {
+      res.status(STATUS_CODE.NOT_FOUND);
+      throw new Error("User not found");
+    }
+
+    const user = users[index];
+
+    if (user.cash < amount) {
+      res.status(STATUS_CODE.BAD_REQUEST);
+      throw new Error("Insufficient funds");
+    }
+
+    user.cash -= amount;
+
+    writeUsersToFile(users);
+    res.json(user);
+  } catch (error) {
+    next(error);
+  }
+};
+
+
 export const transferMoney = async (req, res, next) => {
   try {
     const { senderId, receiverId, amount } = req.body;

@@ -6,6 +6,9 @@ import {
   getUserById,
   updateUser,
   transferMoney,
+  depositCash,
+  updateCredit,
+  withdrawCash,
 } from "../controllers/userController.js";
 
 const router = express.Router();
@@ -27,5 +30,16 @@ router.delete("/:id", deleteUser);
 
 // Route for money transfer
 router.post("/transfer", transferMoney);
+
+// Route for deposite money
+router.post("/users/deposit", depositCash);
+
+// Route for update credit
+router.put("/users/update-credit/:id", updateCredit);
+
+// Route for withdraw money
+router.post("/users/withdraw", withdrawCash);
+
+
 
 export default router
