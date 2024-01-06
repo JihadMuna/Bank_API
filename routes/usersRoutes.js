@@ -29,7 +29,7 @@ router.put("/:id", updateUser);
 router.delete("/:id", deleteUser);
 
 // Route for money transfer
-router.post("/transfer", transferMoney);
+router.post("/users/transfer", transferMoney);
 
 // Route for deposite money
 router.post("/users/deposit", depositCash);
@@ -40,6 +40,4 @@ router.put("/users/update-credit/:id", updateCredit);
 // Route for withdraw money
 router.post("/users/withdraw", withdrawCash);
 
-
-
-export default router
+export default router;

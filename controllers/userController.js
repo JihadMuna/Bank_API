@@ -1,11 +1,9 @@
 import STATUS_CODE from "../constants/statusCodes.js";
-import { readUsersFromFile, writeUsersToFile } from "../models/usersModel.js";
-import { v4 as uuidv4 } from "uuid";
-
+import User from "../models/usersModel.js";
 
 export const getAllUsers = async (req, res, next) => {
   try {
-    const users = readUsersFromFile();
+    const users = await User.find();
     res.json(users);
   } catch (error) {
     next(error);
@@ -14,8 +12,7 @@ export const getAllUsers = async (req, res, next) => {
 
 export const getUserById = async (req, res, next) => {
   try {
-    const users = readUsersFromFile();
-    const user = users.find((u) => u.ID.toString() === req.params.id);
+    const user = await User.findById(req.params.id);
     if (!user) {
       res.status(STATUS_CODE.NOT_FOUND);
       throw new Error("User was not found");
@@ -35,22 +32,18 @@ export const createUser = async (req, res, next) => {
       throw new Error("All fields (firstName, lastName) are required");
     }
 
-    const users = readUsersFromFile();
+    const existingUser = await User.findOne({ firstName, lastName });
 
-    if (users.some((u) => u.firstName === firstName && u.lastName === lastName)) {
+    if (existingUser) {
       res.status(STATUS_CODE.CONFLICT);
       throw new Error("A user with the same name already exists");
     }
 
-    const newUser = { ID: uuidv4(), firstName, lastName, cash, credit };
-    users.push(newUser);
-    writeUsersToFile(users);
-    res.status(STATUS_CODE.CREATED).json(newUser);
+    const newUser = await User.create({ firstName, lastName, cash, credit });
   } catch (error) {
     next(error);
   }
 };
-
 
 export const updateUser = async (req, res, next) => {
   try {
@@ -61,26 +54,21 @@ export const updateUser = async (req, res, next) => {
       throw new Error("All fields (firstName, lastName) are required");
     }
 
-    const users = readUsersFromFile();
-    const index = users.findIndex((u) => u.ID.toString() === req.params.id);
+    const user = await User.findById(req.params.id);
 
-    if (index === -1) {
+    if (!user) {
       res.status(STATUS_CODE.NOT_FOUND);
-      throw new Error("User was not found!");
+      throw new Error("User was not found");
     }
 
-    const existingUser = users[index];
-    const updatedUser = {
-      ...existingUser,
-      firstName: firstName || existingUser.firstName,
-      lastName: lastName || existingUser.lastName,
-      cash: cash !== undefined ? cash : existingUser.cash,
-      credit: credit !== undefined ? credit : existingUser.credit,
-    };
+    user.firstName = firstName || user.firstName;
+    user.lastName = lastName || user.lastName;
+    user.cash = cash !== undefined ? cash : user.cash;
+    user.credit = credit !== undefined ? credit : user.credit;
 
-    users[index] = updatedUser;
-    writeUsersToFile(users);
-    res.json(updatedUser);
+    await user.save();
+
+    res.json(user);
   } catch (error) {
     next(error);
   }
@@ -88,16 +76,16 @@ export const updateUser = async (req, res, next) => {
 
 export const deleteUser = async (req, res, next) => {
   try {
-    const users = readUsersFromFile();
-    const newUserList = users.filter((user) => user.ID.toString() !== req.params.id);
+    const user = await User.findById(req.params.id);
 
-    if (newUserList.length === users.length) {
+    if (!user) {
       res.status(STATUS_CODE.NOT_FOUND);
       throw new Error("User was not found");
     }
 
-    writeUsersToFile(newUserList);
-    res.status(STATUS_CODE.OK).send(`User with the ID of ${req.params.id} was deleted!`);
+    res
+      .status(STATUS_CODE.OK)
+      .send(`User with the ID of ${req.params.id} was deleted successfully!`);
   } catch (error) {
     next(error);
   }
@@ -112,23 +100,23 @@ export const depositCash = async (req, res, next) => {
       throw new Error("Invalid deposit request");
     }
 
-    const users = readUsersFromFile();
-    const index = users.findIndex((u) => u.ID.toString() === userId);
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $inc: { cash: amount } },
+      { new: true }
+    );
 
-    if (index === -1) {
+    if (!user) {
       res.status(STATUS_CODE.NOT_FOUND);
       throw new Error("User not found");
     }
 
-    const user = users[index];
-    user.cash += amount;
-
-    writeUsersToFile(users);
     res.json(user);
   } catch (error) {
     next(error);
   }
 };
+
 export const updateCredit = async (req, res, next) => {
   try {
     const { credit } = req.body;
@@ -138,18 +126,17 @@ export const updateCredit = async (req, res, next) => {
       throw new Error("Invalid credit update request");
     }
 
-    const users = readUsersFromFile();
-    const index = users.findIndex((u) => u.ID.toString() === req.params.id);
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { credit },
+      { new: true }
+    );
 
-    if (index === -1) {
+    if (!user) {
       res.status(STATUS_CODE.NOT_FOUND);
       throw new Error("User not found");
     }
 
-    const user = users[index];
-    user.credit = credit;
-
-    writeUsersToFile(users);
     res.json(user);
   } catch (error) {
     next(error);
@@ -165,30 +152,22 @@ export const withdrawCash = async (req, res, next) => {
       throw new Error("Invalid withdrawal request");
     }
 
-    const users = readUsersFromFile();
-    const index = users.findIndex((u) => u.ID.toString() === userId);
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $inc: { cash: -amount } },
+      { new: true }
+    );
 
-    if (index === -1) {
+    if (!user) {
       res.status(STATUS_CODE.NOT_FOUND);
       throw new Error("User not found");
     }
 
-    const user = users[index];
-
-    if (user.cash < amount) {
-      res.status(STATUS_CODE.BAD_REQUEST);
-      throw new Error("Insufficient funds");
-    }
-
-    user.cash -= amount;
-
-    writeUsersToFile(users);
     res.json(user);
   } catch (error) {
     next(error);
   }
 };
-
 
 export const transferMoney = async (req, res, next) => {
   try {
@@ -199,40 +178,27 @@ export const transferMoney = async (req, res, next) => {
       throw new Error("All fields (senderId, receiverId, amount) are required");
     }
 
-    const users = readUsersFromFile();
-    const senderIndex = users.findIndex((u) => u.ID.toString() === senderId);
-    const receiverIndex = users.findIndex((u) => u.ID.toString() === receiverId);
+    const sender = await User.findByIdAndUpdate(
+      senderId,
+      { $inc: { cash: -amount } },
+      { new: true }
+    );
 
-    if (senderIndex === -1 || receiverIndex === -1) {
-      res.status(STATUS_CODE.NOT_FOUND);
-      throw new Error("Sender or receiver not found!");
-    }
+    const receiver = await User.findByIdAndUpdate(
+      receiverId,
+      { $inc: { cash: amount } },
+      { new: true }
+    );
 
-    const sender = users[senderIndex];
-    const receiver = users[receiverIndex];
-
-    if (sender.cash + sender.credit < amount) {
+    if (!sender || !receiver || sender.cash + sender.credit < 0) {
       res.status(STATUS_CODE.BAD_REQUEST);
       throw new Error("Insufficient funds for the transfer");
     }
 
-    // Deduct the amount from the sender
-    const updatedSender = { ...sender, cash: sender.cash - amount };
-
-    // Add the amount to the receiver
-    const updatedReceiver = { ...receiver, cash: receiver.cash + amount };
-
-    // Update the users array
-    users[senderIndex] = updatedSender;
-    users[receiverIndex] = updatedReceiver;
-
-    // Save the updated users array to the file
-    writeUsersToFile(users);
-
     res.json({
       message: `Transfer of ${amount} from user ${senderId} to user ${receiverId} successful`,
-      sender: updatedSender,
-      receiver: updatedReceiver,
+      sender,
+      receiver,
     });
   } catch (error) {
     next(error);

@@ -1,21 +1,29 @@
-import fs from 'fs'
-import { filePath } from '../utils/dataFilePath.js'
+import mongoose from "mongoose";
 
-const readUsersFromFile = () => {
-    try {
-        const fileData = fs.readFileSync(filePath, 'utf-8');
-        return JSON.parse(fileData)
-    } catch (error) {
-        throw new Error("Error reading from users file")
-    }
-}
+const userSchema = new mongoose.Schema(
+  {
+    firstName: {
+      type: String,
+      required: [true, "Must provide a firstName."],
+    },
+    lastName: {
+      type: String,
+      required: [true, "Must provide a lastName."],
+    },
+    cash: {
+      type: Number,
+      default: 0,
+    },
+    credit: {
+      type: Number,
+      default: 0,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
 
-const writeUsersToFile = (users) => {
-    try {
-        fs.writeFileSync(filePath,JSON.stringify(users), 'utf-8')
-    } catch (error) {
-        throw new Error("Error writing to the users file")
-    }
-}
+const User = mongoose.model("User", userSchema);
 
-export {readUsersFromFile, writeUsersToFile}
+export default User;
